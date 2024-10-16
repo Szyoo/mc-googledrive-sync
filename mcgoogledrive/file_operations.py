@@ -99,6 +99,7 @@ def download_save(service, folder_id, save_folder_name, save_path):
 
         os.remove(zip_path)
         logging.info('删除临时文件 "%s"', zip_path)
+        logging.info('下载存档成功')
     except Exception as e:
         logging.error('下载存档 "%s" 时出错：%s', save_folder_name, e)
 
@@ -114,6 +115,7 @@ def upload_save(service, folder_id, save_folder_name, save_path):
 
         os.remove(zip_path)
         logging.info('删除临时文件 "%s"', zip_path)
+        logging.info('上传存档成功')
     except Exception as e:
         logging.error('上传存档 "%s" 时出错：%s', save_folder_name, e)
 
@@ -143,6 +145,7 @@ def download_mod(service, folder_id, save_path):
 
         os.remove(zip_path)
         logging.info('删除临时文件 "%s"', zip_path)
+        logging.info('下载 MOD 成功')
     except Exception as e:
         logging.error('下载 MOD 时出错：%s', e)
 
@@ -158,5 +161,6 @@ def upload_mod(service, folder_id, save_path):
 
         os.remove(zip_path)
         logging.info('删除临时文件 "%s"', zip_path)
+        logging.info('上传 MOD 成功')
     except Exception as e:
         logging.error('上传 MOD 时出错：%s', e)

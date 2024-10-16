@@ -1,5 +1,4 @@
 import os
-import time
 import tkinter as tk
 from tkinter import filedialog, scrolledtext
 import threading
@@ -250,7 +249,6 @@ class GoogleDriveSyncApp:
             self.folder_entry.get(),
             self.path_entry.get()
         ), daemon=True).start()
-        self.version_compare_thread()
 
     def upload_save_thread(self):
         logging.info('启动上传存档线程')
@@ -260,7 +258,6 @@ class GoogleDriveSyncApp:
             self.folder_entry.get(),
             self.path_entry.get()
         ), daemon=True).start()
-        self.version_compare_thread()
 
     def download_mod_thread(self):
         logging.info('启动下载 MOD 线程')
@@ -269,7 +266,6 @@ class GoogleDriveSyncApp:
             self.drive_sync.folder_id,
             self.path_entry.get()
         ), daemon=True).start()
-        self.version_compare_thread()
 
     def upload_mod_thread(self):
         logging.info('启动上传 MOD 线程')
@@ -278,7 +274,6 @@ class GoogleDriveSyncApp:
             self.drive_sync.folder_id,
             self.path_entry.get()
         ), daemon=True).start()
-        self.version_compare_thread()
 
     def test_bind(self):
         logging.info('测试绑定，获取文件列表')
@@ -311,8 +306,8 @@ class GoogleDriveSyncApp:
             drive_mods_time_utc = datetime.strptime(drive_mods_file["modifiedTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
             # 转换为本地时间
-            drive_saves_time = drive_saves_time_utc.astimezone()
-            drive_mods_time = drive_mods_time_utc.astimezone()
+            drive_saves_time = drive_saves_time_utc.replace(tzinfo=timezone.utc).astimezone()  # 转换为本地时间
+            drive_mods_time = drive_mods_time_utc.replace(tzinfo=timezone.utc).astimezone()  # 转换为本地时间
 
             # 更新 UI 中的 Google Drive 存档信息
             self.drive_saves_time.config(text=f'修改时间: {drive_saves_time.strftime("%Y-%m-%d %H:%M:%S")}')
@@ -323,12 +318,12 @@ class GoogleDriveSyncApp:
             self.drive_mods_size.config(text=f'大小: {drive_mods_file.get("size")} bytes')
 
             # 获取本地文件的修改时间和大小
-            local_playerdata_path = os.path.join(self.path_entry.get(), 'saves', self.folder_entry.get(), 'playerdata')
+            # local_playerdata_path = os.path.join(self.path_entry.get(), 'saves', self.folder_entry.get(), 'playerdata')
             local_saves_path = os.path.join(self.path_entry.get(), 'saves', self.folder_entry.get())
             local_mods_path = os.path.join(self.path_entry.get(), 'mods')
 
-            local_saves_time = datetime.fromtimestamp(os.path.getmtime(local_playerdata_path))
-            local_mods_time = datetime.fromtimestamp(os.path.getmtime(local_mods_path))
+            local_saves_time = datetime.fromtimestamp(os.path.getmtime(local_saves_path))  # 本地时间
+            local_mods_time = datetime.fromtimestamp(os.path.getmtime(local_mods_path))  # 本地时间
 
             local_saves_size = self.get_folder_size(local_saves_path)
             local_mods_size = self.get_folder_size(local_mods_path)
@@ -340,6 +335,8 @@ class GoogleDriveSyncApp:
             # 更新 UI 中的本地 MOD 信息
             self.local_mods_time.config(text=f'修改时间: {local_mods_time.strftime("%Y-%m-%d %H:%M:%S")}')
             self.local_mods_size.config(text=f'大小: {local_mods_size} bytes')
+
+            logging.info('版本比较成功，已刷新数据显示')
 
         except Exception as e:
             logging.error(f'版本比较时出错: {e}')
