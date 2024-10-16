@@ -5,8 +5,8 @@ from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 import logging
 
-CONFIG_FILE = 'config.json'
-TOKEN_FILE = 'token.pickle'
+CONFIG_FILE = 'config/config.json'
+TOKEN_FILE = 'config/token.pickle'
 SCOPES = ['https://www.googleapis.com/auth/drive']
 FOLDER_NAME = 'MC_GoogleDriveSync'
 
@@ -26,7 +26,7 @@ class GoogleDriveSync:
                 if creds and creds.expired and creds.refresh_token:
                     creds.refresh(Request())
                 else:
-                    flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+                    flow = InstalledAppFlow.from_client_secrets_file('config/credentials.json', SCOPES)
                     creds = flow.run_local_server(port=0)
                 with open(TOKEN_FILE, 'wb') as token:
                     pickle.dump(creds, token)

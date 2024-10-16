@@ -116,6 +116,9 @@ class GoogleDriveSyncApp:
         # 配置日志处理器来实时更新日志框
         self.setup_logging_handler()
 
+        # 更新按钮状态
+        self.update_buttons_state()
+
     def setup_logging_handler(self):
         handler = LoggingHandler(self.log_text)
         logging.getLogger().addHandler(handler)
@@ -152,19 +155,39 @@ class GoogleDriveSyncApp:
         except Exception as e:
             logging.error(f'重新绑定 Google Drive 时出错: {e}')
 
+    def auto_bind_google_drive_thread(self):
+        logging.info('启动自动绑定 Google Drive 线程')
+        threading.Thread(target=self.auto_bind_google_drive, daemon=True).start()
 
     def auto_bind_google_drive(self):
         logging.info('尝试自动绑定 Google Drive')
         try:
-            self.drive_sync.bind_google_drive()
-            self.update_bind_button()
-        except Exception:
-            pass
+            if os.path.exists(TOKEN_FILE):
+                self.drive_sync.bind_google_drive()
+                self.update_bind_button()
+            else:
+                logging.info('未找到本地凭据，跳过自动绑定')
+        except Exception as e:
+            logging.error(f'自动绑定 Google Drive 时出错: {e}')
 
     def update_bind_button(self):
         self.bind_drive_button.config(text='Google Drive 已绑定', state=tk.DISABLED)
         self.rebind_drive_button.config(state=tk.NORMAL)
         self.test_bind_button.config(state=tk.NORMAL)
+
+    def check_config_validity(self):
+        if not self.config.get('save_path') or not self.config.get('save_folder'):
+            return False
+        return True
+    
+    def update_buttons_state(self):
+        is_valid = self.check_config_validity()
+        state = tk.NORMAL if is_valid else tk.DISABLED
+        self.download_save_button.config(state=state)
+        self.upload_save_button.config(state=state)
+        self.download_mod_button.config(state=state)
+        self.upload_mod_button.config(state=state)
+
 
     def save_config(self):
         logging.info('保存配置')
@@ -172,6 +195,7 @@ class GoogleDriveSyncApp:
         self.config['save_folder'] = self.folder_entry.get()
         save_config(self.config)
         logging.info('配置已保存')
+        self.update_buttons_state()
 
     def download_save_thread(self):
         logging.info('启动下载存档线程')

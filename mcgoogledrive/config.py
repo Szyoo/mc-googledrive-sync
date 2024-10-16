@@ -2,7 +2,7 @@ import json
 import os
 import logging
 
-CONFIG_FILE = 'config.json'
+CONFIG_FILE = 'config/config.json'
 
 def load_config():
     logging.info('加载配置文件')
