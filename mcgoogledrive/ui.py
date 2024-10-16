@@ -307,8 +307,12 @@ class GoogleDriveSyncApp:
             drive_mods_file = files[1]
 
             # 转换 Google Drive 的时间格式为本地可读格式
-            drive_saves_time = datetime.strptime(drive_saves_file["modifiedTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
-            drive_mods_time = datetime.strptime(drive_mods_file["modifiedTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
+            drive_saves_time_utc = datetime.strptime(drive_saves_file["modifiedTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
+            drive_mods_time_utc = datetime.strptime(drive_mods_file["modifiedTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
+
+            # 转换为本地时间
+            drive_saves_time = drive_saves_time_utc.astimezone()
+            drive_mods_time = drive_mods_time_utc.astimezone()
 
             # 更新 UI 中的 Google Drive 存档信息
             self.drive_saves_time.config(text=f'修改时间: {drive_saves_time.strftime("%Y-%m-%d %H:%M:%S")}')
@@ -323,8 +327,8 @@ class GoogleDriveSyncApp:
             local_saves_path = os.path.join(self.path_entry.get(), 'saves', self.folder_entry.get())
             local_mods_path = os.path.join(self.path_entry.get(), 'mods')
 
-            local_saves_time = datetime.fromtimestamp(os.path.getmtime(local_playerdata_path), tz=timezone.utc)
-            local_mods_time = datetime.fromtimestamp(os.path.getmtime(local_mods_path), tz=timezone.utc)
+            local_saves_time = datetime.fromtimestamp(os.path.getmtime(local_playerdata_path))
+            local_mods_time = datetime.fromtimestamp(os.path.getmtime(local_mods_path))
 
             local_saves_size = self.get_folder_size(local_saves_path)
             local_mods_size = self.get_folder_size(local_mods_path)
