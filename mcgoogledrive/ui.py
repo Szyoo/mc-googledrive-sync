@@ -70,20 +70,6 @@ class GoogleDriveSyncApp:
         self.folder_entry.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
         self.folder_entry.insert(0, self.config.get('save_folder', ''))
 
-        # 下载/上传存档按钮
-        self.save_buttons_frame = tk.Frame(self.root)
-        self.save_buttons_frame.pack(fill='x', pady=5)
-        self.save_buttons_frame.columnconfigure(1, weight=1)
-        self.save_buttons_label = tk.Label(self.save_buttons_frame, text='存档管理', anchor='w', width=15)
-        self.save_buttons_label.grid(row=0, column=0, padx=5, pady=5, sticky='w')
-        self.save_buttons_sub_frame = tk.Frame(self.save_buttons_frame)
-        self.save_buttons_sub_frame.grid(row=0, column=1, sticky='ew')
-        self.save_buttons_sub_frame.columnconfigure([0, 1], weight=1)
-        self.download_save_button = tk.Button(self.save_buttons_sub_frame, text='下载存档', command=self.download_save_thread)
-        self.download_save_button.grid(row=0, column=0, padx=5, pady=5, sticky='ew')
-        self.upload_save_button = tk.Button(self.save_buttons_sub_frame, text='上传存档', command=self.upload_save_thread)
-        self.upload_save_button.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
-
         # 存档版本比较结果显示
         self.saves_version_frame = tk.Frame(self.root)
         self.saves_version_frame.pack(fill='x', pady=2)
@@ -103,19 +89,19 @@ class GoogleDriveSyncApp:
         self.local_saves_size = tk.Label(self.saves_version_frame, text='', anchor='w')
         self.local_saves_size.grid(row=1, column=2, padx=5, pady=2, sticky='w')
 
-        # 下载/上传 MOD 按钮
-        self.mod_buttons_frame = tk.Frame(self.root)
-        self.mod_buttons_frame.pack(fill='x', pady=5)
-        self.mod_buttons_frame.columnconfigure(1, weight=1)
-        self.mod_buttons_label = tk.Label(self.mod_buttons_frame, text='MOD 管理', anchor='w', width=15)
-        self.mod_buttons_label.grid(row=0, column=0, padx=5, pady=5, sticky='w')
-        self.mod_buttons_sub_frame = tk.Frame(self.mod_buttons_frame)
-        self.mod_buttons_sub_frame.grid(row=0, column=1, sticky='ew')
-        self.mod_buttons_sub_frame.columnconfigure([0, 1], weight=1)
-        self.download_mod_button = tk.Button(self.mod_buttons_sub_frame, text='下载 MOD', command=self.download_mod_thread)
-        self.download_mod_button.grid(row=0, column=0, padx=5, pady=5, sticky='ew')
-        self.upload_mod_button = tk.Button(self.mod_buttons_sub_frame, text='上传 MOD', command=self.upload_mod_thread)
-        self.upload_mod_button.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
+        # 下载/上传存档按钮
+        self.save_buttons_frame = tk.Frame(self.root)
+        self.save_buttons_frame.pack(fill='x', pady=5)
+        self.save_buttons_frame.columnconfigure(1, weight=1)
+        self.save_buttons_label = tk.Label(self.save_buttons_frame, text='存档管理', anchor='w', width=15)
+        self.save_buttons_label.grid(row=0, column=0, padx=5, pady=5, sticky='w')
+        self.save_buttons_sub_frame = tk.Frame(self.save_buttons_frame)
+        self.save_buttons_sub_frame.grid(row=0, column=1, sticky='ew')
+        self.save_buttons_sub_frame.columnconfigure([0, 1], weight=1)
+        self.download_save_button = tk.Button(self.save_buttons_sub_frame, text='下载存档', command=self.download_save_thread)
+        self.download_save_button.grid(row=0, column=0, padx=5, pady=5, sticky='ew')
+        self.upload_save_button = tk.Button(self.save_buttons_sub_frame, text='上传存档', command=self.upload_save_thread)
+        self.upload_save_button.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
 
         # MOD 版本比较结果显示
         self.mods_version_frame = tk.Frame(self.root)
@@ -135,6 +121,20 @@ class GoogleDriveSyncApp:
         self.local_mods_time.grid(row=1, column=1, padx=5, pady=2, sticky='w')
         self.local_mods_size = tk.Label(self.mods_version_frame, text='', anchor='w')
         self.local_mods_size.grid(row=1, column=2, padx=5, pady=2, sticky='w')
+
+        # 下载/上传 MOD 按钮
+        self.mod_buttons_frame = tk.Frame(self.root)
+        self.mod_buttons_frame.pack(fill='x', pady=5)
+        self.mod_buttons_frame.columnconfigure(1, weight=1)
+        self.mod_buttons_label = tk.Label(self.mod_buttons_frame, text='MOD 管理', anchor='w', width=15)
+        self.mod_buttons_label.grid(row=0, column=0, padx=5, pady=5, sticky='w')
+        self.mod_buttons_sub_frame = tk.Frame(self.mod_buttons_frame)
+        self.mod_buttons_sub_frame.grid(row=0, column=1, sticky='ew')
+        self.mod_buttons_sub_frame.columnconfigure([0, 1], weight=1)
+        self.download_mod_button = tk.Button(self.mod_buttons_sub_frame, text='下载 MOD', command=self.download_mod_thread)
+        self.download_mod_button.grid(row=0, column=0, padx=5, pady=5, sticky='ew')
+        self.upload_mod_button = tk.Button(self.mod_buttons_sub_frame, text='上传 MOD', command=self.upload_mod_thread)
+        self.upload_mod_button.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
 
         # 保存配置按钮
         self.save_config_frame = tk.Frame(self.root)
@@ -319,10 +319,11 @@ class GoogleDriveSyncApp:
             self.drive_mods_size.config(text=f'大小: {drive_mods_file.get("size")} bytes')
 
             # 获取本地文件的修改时间和大小
+            local_playerdata_path = os.path.join(self.path_entry.get(), 'saves', self.folder_entry.get(), 'playerdata')
             local_saves_path = os.path.join(self.path_entry.get(), 'saves', self.folder_entry.get())
             local_mods_path = os.path.join(self.path_entry.get(), 'mods')
 
-            local_saves_time = datetime.fromtimestamp(os.path.getmtime(local_saves_path), tz=timezone.utc)
+            local_saves_time = datetime.fromtimestamp(os.path.getmtime(local_playerdata_path), tz=timezone.utc)
             local_mods_time = datetime.fromtimestamp(os.path.getmtime(local_mods_path), tz=timezone.utc)
 
             local_saves_size = self.get_folder_size(local_saves_path)
