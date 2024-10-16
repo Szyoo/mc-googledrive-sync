@@ -1,8 +1,10 @@
 import os
+import time
 import tkinter as tk
 from tkinter import filedialog, scrolledtext
 import threading
 import logging
+from datetime import datetime, timezone
 from mcgoogledrive.drive_sync import TOKEN_FILE, GoogleDriveSync
 from mcgoogledrive.config import load_config, save_config
 from mcgoogledrive.utils import setup_logging
@@ -22,31 +24,28 @@ class GoogleDriveSyncApp:
         self.root.update()
 
         # 自动绑定 Google Drive（如果存在凭据）
-        self.auto_bind_google_drive()
+        self.auto_bind_google_drive_thread()
 
     def setup_ui(self):
         logging.info('设置 UI 元素')
-        self.root.geometry('600x500')
+        self.root.geometry('600x600')
         self.root.configure(padx=20, pady=20)
 
         # 设置最小宽度
-        self.root.minsize(600, 500)
+        self.root.minsize(600, 600)
 
         # Google Drive 绑定按钮
         self.button_frame = tk.Frame(self.root)
         self.button_frame.pack(fill='x', pady=5)
-        self.button_frame.columnconfigure(2, weight=1)
+        self.button_frame.columnconfigure(3, weight=1)
         self.bind_drive_label = tk.Label(self.button_frame, text='Google Drive 绑定', anchor='w', width=15)
         self.bind_drive_label.grid(row=0, column=0, padx=5, pady=5, sticky='w')
-        self.button_sub_frame = tk.Frame(self.button_frame)
-        self.button_sub_frame.grid(row=0, column=1, sticky='ew')
-        self.button_sub_frame.columnconfigure([0, 1], weight=1)
-        self.bind_drive_button = tk.Button(self.button_sub_frame, text='绑定 Google Drive', command=self.bind_google_drive_thread)
-        self.bind_drive_button.grid(row=0, column=0, padx=5, pady=5, sticky='ew')
-        self.rebind_drive_button = tk.Button(self.button_sub_frame, text='重新绑定', command=self.rebind_google_drive_thread, state=tk.DISABLED)
-        self.rebind_drive_button.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
-        self.test_bind_button = tk.Button(self.button_sub_frame, text='测试绑定', command=self.test_bind, state=tk.DISABLED)
-        self.test_bind_button.grid(row=0, column=2, padx=5, pady=5, sticky='e')
+        self.bind_drive_button = tk.Button(self.button_frame, text='绑定 Google Drive', command=self.bind_google_drive_thread)
+        self.bind_drive_button.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
+        self.rebind_drive_button = tk.Button(self.button_frame, text='重新绑定', command=self.rebind_google_drive_thread, state=tk.DISABLED)
+        self.rebind_drive_button.grid(row=0, column=2, padx=5, pady=5, sticky='ew')
+        self.test_bind_button = tk.Button(self.button_frame, text='测试绑定', command=self.test_bind, state=tk.DISABLED)
+        self.test_bind_button.grid(row=0, column=3, padx=5, pady=5, sticky='ew')
 
         # 存档路径输入框
         self.path_frame = tk.Frame(self.root)
@@ -56,6 +55,7 @@ class GoogleDriveSyncApp:
         self.path_label.grid(row=0, column=0, padx=5, pady=5)
         self.path_entry = tk.Entry(self.path_frame)
         self.path_entry.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
+        # 回填存档路径
         self.path_entry.insert(0, self.config.get('save_path', ''))
         self.path_button = tk.Button(self.path_frame, text='选择路径', command=self.select_path)
         self.path_button.grid(row=0, column=2, padx=5, pady=5)
@@ -84,6 +84,25 @@ class GoogleDriveSyncApp:
         self.upload_save_button = tk.Button(self.save_buttons_sub_frame, text='上传存档', command=self.upload_save_thread)
         self.upload_save_button.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
 
+        # 存档版本比较结果显示
+        self.saves_version_frame = tk.Frame(self.root)
+        self.saves_version_frame.pack(fill='x', pady=2)
+        self.saves_version_frame.columnconfigure([1, 2], weight=1)
+
+        self.drive_saves_label = tk.Label(self.saves_version_frame, text='Google Drive 存档', anchor='w', width=15)
+        self.drive_saves_label.grid(row=0, column=0, padx=5, pady=2)
+        self.drive_saves_time = tk.Label(self.saves_version_frame, text='', anchor='w')
+        self.drive_saves_time.grid(row=0, column=1, padx=5, pady=2, sticky='w')
+        self.drive_saves_size = tk.Label(self.saves_version_frame, text='', anchor='w')
+        self.drive_saves_size.grid(row=0, column=2, padx=5, pady=2, sticky='w')
+
+        self.local_saves_label = tk.Label(self.saves_version_frame, text='本地存档', anchor='w', width=15)
+        self.local_saves_label.grid(row=1, column=0, padx=5, pady=2)
+        self.local_saves_time = tk.Label(self.saves_version_frame, text='', anchor='w')
+        self.local_saves_time.grid(row=1, column=1, padx=5, pady=2, sticky='w')
+        self.local_saves_size = tk.Label(self.saves_version_frame, text='', anchor='w')
+        self.local_saves_size.grid(row=1, column=2, padx=5, pady=2, sticky='w')
+
         # 下载/上传 MOD 按钮
         self.mod_buttons_frame = tk.Frame(self.root)
         self.mod_buttons_frame.pack(fill='x', pady=5)
@@ -98,14 +117,38 @@ class GoogleDriveSyncApp:
         self.upload_mod_button = tk.Button(self.mod_buttons_sub_frame, text='上传 MOD', command=self.upload_mod_thread)
         self.upload_mod_button.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
 
+        # MOD 版本比较结果显示
+        self.mods_version_frame = tk.Frame(self.root)
+        self.mods_version_frame.pack(fill='x', pady=2)
+        self.mods_version_frame.columnconfigure([1, 2], weight=1)
+
+        self.drive_mods_label = tk.Label(self.mods_version_frame, text='Google Drive MOD', anchor='w', width=15)
+        self.drive_mods_label.grid(row=0, column=0, padx=5, pady=2)
+        self.drive_mods_time = tk.Label(self.mods_version_frame, text='', anchor='w')
+        self.drive_mods_time.grid(row=0, column=1, padx=5, pady=2, sticky='w')
+        self.drive_mods_size = tk.Label(self.mods_version_frame, text='', anchor='w')
+        self.drive_mods_size.grid(row=0, column=2, padx=5, pady=2, sticky='w')
+
+        self.local_mods_label = tk.Label(self.mods_version_frame, text='本地 MOD', anchor='w', width=15)
+        self.local_mods_label.grid(row=1, column=0, padx=5, pady=2)
+        self.local_mods_time = tk.Label(self.mods_version_frame, text='', anchor='w')
+        self.local_mods_time.grid(row=1, column=1, padx=5, pady=2, sticky='w')
+        self.local_mods_size = tk.Label(self.mods_version_frame, text='', anchor='w')
+        self.local_mods_size.grid(row=1, column=2, padx=5, pady=2, sticky='w')
+
         # 保存配置按钮
         self.save_config_frame = tk.Frame(self.root)
         self.save_config_frame.pack(fill='x', pady=10)
         self.save_config_frame.columnconfigure(1, weight=1)
         self.save_config_label = tk.Label(self.save_config_frame, text='保存配置', anchor='w', width=15)
         self.save_config_label.grid(row=0, column=0, padx=5, pady=5, sticky='w')
-        self.save_config_button = tk.Button(self.save_config_frame, text='保存配置', command=self.save_config)
-        self.save_config_button.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
+        self.save_config_sub_frame = tk.Frame(self.save_config_frame)
+        self.save_config_sub_frame.grid(row=0, column=1, sticky='ew')
+        self.save_config_sub_frame.columnconfigure([0, 1], weight=1)
+        self.save_config_button = tk.Button(self.save_config_sub_frame, text='保存配置', command=self.save_config)
+        self.save_config_button.grid(row=0, column=0, padx=5, pady=5, sticky='ew')
+        self.version_compare_button = tk.Button(self.save_config_sub_frame, text='版本比较', command=self.version_compare_thread)
+        self.version_compare_button.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
 
         # 日志显示框
         self.log_frame = tk.Frame(self.root)
@@ -165,6 +208,8 @@ class GoogleDriveSyncApp:
             if os.path.exists(TOKEN_FILE):
                 self.drive_sync.bind_google_drive()
                 self.update_bind_button()
+                if self.check_config_validity():
+                    self.version_compare_thread()
             else:
                 logging.info('未找到本地凭据，跳过自动绑定')
         except Exception as e:
@@ -179,7 +224,7 @@ class GoogleDriveSyncApp:
         if not self.config.get('save_path') or not self.config.get('save_folder'):
             return False
         return True
-    
+
     def update_buttons_state(self):
         is_valid = self.check_config_validity()
         state = tk.NORMAL if is_valid else tk.DISABLED
@@ -187,7 +232,7 @@ class GoogleDriveSyncApp:
         self.upload_save_button.config(state=state)
         self.download_mod_button.config(state=state)
         self.upload_mod_button.config(state=state)
-
+        self.version_compare_button.config(state=state)
 
     def save_config(self):
         logging.info('保存配置')
@@ -205,6 +250,7 @@ class GoogleDriveSyncApp:
             self.folder_entry.get(),
             self.path_entry.get()
         ), daemon=True).start()
+        self.version_compare_thread()
 
     def upload_save_thread(self):
         logging.info('启动上传存档线程')
@@ -214,6 +260,7 @@ class GoogleDriveSyncApp:
             self.folder_entry.get(),
             self.path_entry.get()
         ), daemon=True).start()
+        self.version_compare_thread()
 
     def download_mod_thread(self):
         logging.info('启动下载 MOD 线程')
@@ -222,6 +269,7 @@ class GoogleDriveSyncApp:
             self.drive_sync.folder_id,
             self.path_entry.get()
         ), daemon=True).start()
+        self.version_compare_thread()
 
     def upload_mod_thread(self):
         logging.info('启动上传 MOD 线程')
@@ -230,6 +278,7 @@ class GoogleDriveSyncApp:
             self.drive_sync.folder_id,
             self.path_entry.get()
         ), daemon=True).start()
+        self.version_compare_thread()
 
     def test_bind(self):
         logging.info('测试绑定，获取文件列表')
@@ -240,6 +289,63 @@ class GoogleDriveSyncApp:
                 logging.info(f'- {file["name"]}')
         except Exception as e:
             logging.error(f'测试绑定时出错: {e}')
+
+    def version_compare_thread(self):
+        logging.info('启动版本比较线程')
+        threading.Thread(target=self.version_compare, daemon=True).start()
+
+    def version_compare(self):
+        logging.info('开始版本比较')
+        try:
+            # 获取 Google Drive 文件的修改时间和大小
+            files = self.drive_sync.list_files()
+            if len(files) < 2:
+                logging.error('Google Drive 文件夹中文件数量不足以进行版本比较')
+                return
+
+            drive_saves_file = files[0]
+            drive_mods_file = files[1]
+
+            # 转换 Google Drive 的时间格式为本地可读格式
+            drive_saves_time = datetime.strptime(drive_saves_file["modifiedTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
+            drive_mods_time = datetime.strptime(drive_mods_file["modifiedTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
+
+            # 更新 UI 中的 Google Drive 存档信息
+            self.drive_saves_time.config(text=f'修改时间: {drive_saves_time.strftime("%Y-%m-%d %H:%M:%S")}')
+            self.drive_saves_size.config(text=f'大小: {drive_saves_file.get("size")} bytes')
+
+            # 更新 UI 中的 Google Drive MOD 信息
+            self.drive_mods_time.config(text=f'修改时间: {drive_mods_time.strftime("%Y-%m-%d %H:%M:%S")}')
+            self.drive_mods_size.config(text=f'大小: {drive_mods_file.get("size")} bytes')
+
+            # 获取本地文件的修改时间和大小
+            local_saves_path = os.path.join(self.path_entry.get(), 'saves', self.folder_entry.get())
+            local_mods_path = os.path.join(self.path_entry.get(), 'mods')
+
+            local_saves_time = datetime.fromtimestamp(os.path.getmtime(local_saves_path), tz=timezone.utc)
+            local_mods_time = datetime.fromtimestamp(os.path.getmtime(local_mods_path), tz=timezone.utc)
+
+            local_saves_size = self.get_folder_size(local_saves_path)
+            local_mods_size = self.get_folder_size(local_mods_path)
+
+            # 更新 UI 中的本地存档信息
+            self.local_saves_time.config(text=f'修改时间: {local_saves_time.strftime("%Y-%m-%d %H:%M:%S")}')
+            self.local_saves_size.config(text=f'大小: {local_saves_size} bytes')
+
+            # 更新 UI 中的本地 MOD 信息
+            self.local_mods_time.config(text=f'修改时间: {local_mods_time.strftime("%Y-%m-%d %H:%M:%S")}')
+            self.local_mods_size.config(text=f'大小: {local_mods_size} bytes')
+
+        except Exception as e:
+            logging.error(f'版本比较时出错: {e}')
+
+    def get_folder_size(self, folder_path):
+        total_size = 0
+        for dirpath, dirnames, filenames in os.walk(folder_path):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                total_size += os.path.getsize(fp)
+        return total_size
 
 class LoggingHandler(logging.Handler):
     def __init__(self, log_widget):

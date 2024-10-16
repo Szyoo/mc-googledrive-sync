@@ -62,7 +62,11 @@ class GoogleDriveSync:
         try:
             if not self.folder_id:
                 raise ValueError('未找到专属文件夹 ID')
-            results = self.service.files().list(q=f'"{self.folder_id}" in parents and trashed=false', spaces='drive').execute()
+            results = self.service.files().list(
+                q=f'"{self.folder_id}" in parents and trashed=false', 
+                spaces='drive', 
+                fields='files(id, name, modifiedTime, size)'
+            ).execute()
             items = results.get('files', [])
             return items
         except Exception as e:
