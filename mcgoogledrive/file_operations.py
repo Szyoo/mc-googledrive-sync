@@ -85,7 +85,7 @@ def download_save(service, folder_id, save_folder_name, save_path):
             logging.error('文件 "%s" 是 Google Apps 类型，无法直接下载', file_name)
             return
 
-        zip_folder = os.path.join(save_path, 'saves')
+        zip_folder = os.path.join(save_path, 'saves', save_folder_name)
         zip_path = os.path.join(zip_folder, file_name)
         os.makedirs(zip_folder, exist_ok=True)
 
