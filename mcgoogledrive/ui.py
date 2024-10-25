@@ -292,22 +292,43 @@ class GoogleDriveSyncApp:
     def version_compare(self):
         logging.info('开始版本比较')
         try:
-            # 获取 Google Drive 文件的修改时间和大小
-            files = self.drive_sync.list_files()
-            if len(files) < 2:
-                logging.error('Google Drive 文件夹中文件数量不足以进行版本比较')
-                return
+            # 定义需要查找的文件名
+            save_zip_name = f"{self.folder_entry.get()}.zip"
+            mods_zip_name = "mods.zip"
 
-            drive_saves_file = files[0]
-            drive_mods_file = files[1]
+            # 通过文件名查找存档ZIP文件
+            save_query = f'name = "{save_zip_name}" and "{self.drive_sync.folder_id}" in parents and trashed=false'
+            save_results = self.drive_sync.service.files().list(
+                q=save_query,
+                spaces='drive',
+                fields='files(id, name, modifiedTime, size)'
+            ).execute()
+            save_items = save_results.get('files', [])
+            if not save_items:
+                logging.error(f'未找到名为 "{save_zip_name}" 的存档文件')
+                return
+            drive_saves_file = save_items[0]
+
+            # 通过文件名查找MOD ZIP文件
+            mods_query = f'name = "{mods_zip_name}" and "{self.drive_sync.folder_id}" in parents and trashed=false'
+            mods_results = self.drive_sync.service.files().list(
+                q=mods_query,
+                spaces='drive',
+                fields='files(id, name, modifiedTime, size)'
+            ).execute()
+            mods_items = mods_results.get('files', [])
+            if not mods_items:
+                logging.error(f'未找到名为 "{mods_zip_name}" 的MOD文件')
+                return
+            drive_mods_file = mods_items[0]
 
             # 转换 Google Drive 的时间格式为本地可读格式
             drive_saves_time_utc = datetime.strptime(drive_saves_file["modifiedTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
             drive_mods_time_utc = datetime.strptime(drive_mods_file["modifiedTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
             # 转换为本地时间
-            drive_saves_time = drive_saves_time_utc.replace(tzinfo=timezone.utc).astimezone()  # 转换为本地时间
-            drive_mods_time = drive_mods_time_utc.replace(tzinfo=timezone.utc).astimezone()  # 转换为本地时间
+            drive_saves_time = drive_saves_time_utc.replace(tzinfo=timezone.utc).astimezone()
+            drive_mods_time = drive_mods_time_utc.replace(tzinfo=timezone.utc).astimezone()
 
             # 更新 UI 中的 Google Drive 存档信息
             self.drive_saves_time.config(text=f'修改时间: {drive_saves_time.strftime("%Y-%m-%d %H:%M:%S")}')
@@ -317,14 +338,23 @@ class GoogleDriveSyncApp:
             self.drive_mods_time.config(text=f'修改时间: {drive_mods_time.strftime("%Y-%m-%d %H:%M:%S")}')
             self.drive_mods_size.config(text=f'大小: {drive_mods_file.get("size")} bytes')
 
-            # 获取本地文件的修改时间和大小
-            # local_playerdata_path = os.path.join(self.path_entry.get(), 'saves', self.folder_entry.get(), 'playerdata')
+            # 获取本地存档和 MOD 文件的路径
             local_saves_path = os.path.join(self.path_entry.get(), 'saves', self.folder_entry.get())
             local_mods_path = os.path.join(self.path_entry.get(), 'mods')
 
-            local_saves_time = datetime.fromtimestamp(os.path.getmtime(local_saves_path))  # 本地时间
-            local_mods_time = datetime.fromtimestamp(os.path.getmtime(local_mods_path))  # 本地时间
+            # 检查本地存档和 MOD 文件夹是否存在
+            if not os.path.exists(local_saves_path):
+                logging.error(f'本地存档路径不存在: {local_saves_path}')
+                return
+            if not os.path.exists(local_mods_path):
+                logging.error(f'本地 MOD 路径不存在: {local_mods_path}')
+                return
 
+            # 获取本地存档文件夹内所有文件的最新修改时间
+            local_saves_time = self.get_latest_modified_time(local_saves_path)
+            local_mods_time = datetime.fromtimestamp(os.path.getmtime(local_mods_path))
+
+            # 获取文件夹大小
             local_saves_size = self.get_folder_size(local_saves_path)
             local_mods_size = self.get_folder_size(local_mods_path)
 
@@ -340,6 +370,17 @@ class GoogleDriveSyncApp:
 
         except Exception as e:
             logging.error(f'版本比较时出错: {e}')
+
+    # 辅助方法：获取文件夹内最新文件的修改时间
+    def get_latest_modified_time(self, folder_path):
+        latest_time = None
+        for root, _, files in os.walk(folder_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                file_time = os.path.getmtime(file_path)
+                if latest_time is None or file_time > latest_time:
+                    latest_time = file_time
+        return datetime.fromtimestamp(latest_time) if latest_time else None
 
     def get_folder_size(self, folder_path):
         total_size = 0

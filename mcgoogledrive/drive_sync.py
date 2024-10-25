@@ -19,17 +19,24 @@ class GoogleDriveSync:
         logging.info('开始绑定 Google Drive')
         try:
             creds = None
+            # 尝试加载现有的凭据
             if os.path.exists(TOKEN_FILE):
                 with open(TOKEN_FILE, 'rb') as token:
                     creds = pickle.load(token)
+            # 检查凭据有效性，如果无效则重新授权
             if not creds or not creds.valid:
                 if creds and creds.expired and creds.refresh_token:
-                    creds.refresh(Request())
+                    try:
+                        creds.refresh(Request())
+                    except Exception as refresh_error:
+                        # 如果刷新失败，则处理 invalid_grant 错误
+                        logging.warning('刷新令牌失败，尝试重新授权')
+                        if os.path.exists(TOKEN_FILE):
+                            os.remove(TOKEN_FILE)  # 删除失效的 token 文件
+                        creds = self.perform_authentication()  # 重新认证
                 else:
-                    flow = InstalledAppFlow.from_client_secrets_file('config/credentials.json', SCOPES)
-                    creds = flow.run_local_server(port=0)
-                with open(TOKEN_FILE, 'wb') as token:
-                    pickle.dump(creds, token)
+                    creds = self.perform_authentication()  # 第一次授权或无效凭据时重新认证
+            # 构建 Google Drive API 服务
             self.service = build('drive', 'v3', credentials=creds)
             self.create_app_folder()
             logging.info('Google Drive 绑定成功')
@@ -37,6 +44,14 @@ class GoogleDriveSync:
             logging.error('绑定 Google Drive 时出错: %s', e)
             raise
 
+    def perform_authentication(self):
+        """执行 OAuth 认证流程，生成新的凭据并保存"""
+        flow = InstalledAppFlow.from_client_secrets_file('config/credentials.json', SCOPES)
+        creds = flow.run_local_server(port=0)
+        with open(TOKEN_FILE, 'wb') as token:
+            pickle.dump(creds, token)
+        return creds
+    
     def create_app_folder(self):
         logging.info('创建专属 Google Drive 文件夹')
         try:
