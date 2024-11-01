@@ -18,7 +18,7 @@ source .venv/bin/activate  # macOS/Linux
 ### 安装依赖：
 
 ```bash
-pip install google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2 pyinstaller
+pip install google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2 py2app
 pip install --upgrade pip
 python3 --version
 ## 在@后面输入刚刚获得的前两部分大版本号，比如 3.12.7 则输入 @3.12
@@ -29,4 +29,6 @@ brew install python-tk@
 
 ```bash
 pyinstaller --onefile --windowed main.py
+cp -R dist/main.app /Applications/
+mv /Applications/main.app /Application/MC-Google-Sync
 ```
